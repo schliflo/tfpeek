@@ -2,6 +2,7 @@
   "name": "tfpeek",
   "version": "0.1.0",
   "description": "Read-only web UI for Terraform state in GCS",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "engines": { "node": ">=26" },
