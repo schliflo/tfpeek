@@ -5,12 +5,15 @@
   "license": "MIT",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=26" },
+  "engines": {
+    "node": ">=26"
+  },
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test"
   },
   "dependencies": {
-    "@google-cloud/storage": "^9.0.0"
+    "@google-cloud/storage": "^9.0.0",
+    "google-auth-library": "^11.3.4"
   }
 }

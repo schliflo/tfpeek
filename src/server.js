@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Storage } from '@google-cloud/storage';
+import { PassThroughClient } from 'google-auth-library';
 import { maskState, diffStates, matchRuns } from './core.js';
 import { overviewPage, envPage, historyPage, messagePage } from './pages.js';
 
@@ -10,7 +11,12 @@ if (!buckets.length) {
   console.error('STATE_BUCKETS is required (comma-separated bucket names)');
   process.exit(1);
 }
-const storage = new Storage();
+// Reading objects needs no project. A fixed id skips auto-detection, which fails outside GCP.
+// The emulator takes no credentials, but the library would still go looking for some.
+const storage = new Storage({
+  projectId: 'tfpeek',
+  ...(process.env.STORAGE_EMULATOR_HOST && { authClient: new PassThroughClient() }),
+});
 const assets = Object.fromEntries(Object.entries({
   '/favicon.svg': 'image/svg+xml', '/assets/app.css': 'text/css', '/assets/app.js': 'text/javascript',
 }).map(([url, type]) => [url, { type, body: readFileSync(new URL(`./assets/${url.split('/').pop()}`, import.meta.url)) }]));
