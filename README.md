@@ -13,13 +13,15 @@ Filter with `/`, link straight to a resource (`#address`), light and dark theme.
 
 ```bash
 gcloud auth application-default login
-docker build -t tfpeek .
 docker run --rm -p 8080:8080 \
   -e STATE_BUCKETS=my-tfstate \
   -e GOOGLE_APPLICATION_CREDENTIALS=/adc.json \
   -v ~/.config/gcloud/application_default_credentials.json:/adc.json:ro \
-  tfpeek
+  ghcr.io/schliflo/tfpeek
 ```
+
+Images: `latest` and `main` follow the main branch, a git tag `v1.2.3` is published as `:v1.2.3` (amd64 and arm64).
+Or build it yourself with `docker build -t tfpeek .`.
 
 Without Docker: `npm ci && STATE_BUCKETS=my-tfstate npm start` (Node 26).
 
