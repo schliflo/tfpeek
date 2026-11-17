@@ -13,7 +13,7 @@ Filter with `/`, link straight to a resource (`#address`), light and dark theme.
 
 ```bash
 gcloud auth application-default login
-docker run --rm -p 8080:8080 \
+docker run --rm -p 127.0.0.1:8080:8080 \
   -e STATE_BUCKETS=my-tfstate \
   -e GOOGLE_APPLICATION_CREDENTIALS=/adc.json \
   -v ~/.config/gcloud/application_default_credentials.json:/adc.json:ro \
@@ -23,14 +23,15 @@ docker run --rm -p 8080:8080 \
 Images: `latest` and `main` follow the main branch, a git tag `v1.2.3` is published as `:v1.2.3` (amd64 and arm64).
 Or build it yourself with `docker build -t tfpeek .`.
 
-Without Docker: `npm ci && STATE_BUCKETS=my-tfstate npm start` (Node 26).
+Without Docker: `npm ci && STATE_BUCKETS=my-tfstate npm start` (Node 26). This listens on all interfaces and has no login,
+so only do it on a network you trust.
 
 | Env | |
 |---|---|
 | `STATE_BUCKETS` | Comma-separated state buckets. Required. |
 | `RUNS_BUCKET` | Bucket holding run records. Default: the state bucket. |
 | `PORT` | Default `8080`. |
-| `TZ` | Timezone for displayed times. Default UTC. |
+| `TZ` | Timezone for times when the browser has JavaScript off. Default UTC. Otherwise the viewer's own timezone is used. |
 | `SENTRY_DSN` | Optional. Errors are reported there (message and stack, never state content). |
 
 ## Bucket layout
@@ -116,8 +117,8 @@ npm test
 
 Try it without a real bucket using [fake-gcs-server](https://github.com/fsouza/fake-gcs-server):
 start it with `-scheme http -backend memory` and set `STORAGE_EMULATOR_HOST=http://localhost:4443/storage/v1`.
-
 With that variable set, `npm test` also runs a smoke test of the server.
+
 ## License
 
 [MIT](LICENSE)
