@@ -81,16 +81,16 @@ const listEnvs = () => cached('envs', TTL, async () => {
   return envs.sort((a, b) => a.id.localeCompare(b.id));
 });
 
-// Lock may vanish between list and read; then it is simply not locked any more.
+// Gone between list and read (404) means unlocked. Any other error still counts as locked.
 const loadLock = (env) => env.locked
-  ? cached(`lock:${env.bucket}:${env.id}`, TTL, () => readJson(env.bucket, `${env.id}.tflock`).catch(() => null))
+  ? cached(`lock:${env.bucket}:${env.id}`, TTL, () => readJson(env.bucket, `${env.id}.tflock`).catch((err) => (err.code === 404 ? null : {})))
   : null;
 
 // Newest first. Records live in runs/<prefix>/ (default workspace) or runs/<prefix>/<workspace>/.
 // shortcut: lists every record of the environment, add a lifecycle rule or date prefix if that gets slow
 const loadRuns = (env, limit) => cached(`runs:${env.bucket}:${env.id}:${limit}`, TTL, async () => {
   const bucket = process.env.RUNS_BUCKET || env.bucket;
-  const prefix = `runs/${env.id.replace(/\/default$/, '')}/`;
+  const prefix = env.id === 'default' ? 'runs/' : `runs/${env.id.replace(/\/default$/, '')}/`;
   const [files] = await storage.bucket(bucket).getFiles({ prefix, delimiter: '/' });
   const names = files.map((f) => f.name).filter((n) => n.endsWith('.json')).sort().reverse().slice(0, limit);
   const runs = await Promise.all(names.map((n) => readJson(bucket, n).catch(() => null)));
@@ -134,7 +134,9 @@ async function history(env) {
 
 async function route(url) {
   if (url.pathname === '/') return overviewPage(await overview());
-  const [, page, bucket, ...rest] = url.pathname.split('/').map(decodeURIComponent);
+  let parts;
+  try { parts = url.pathname.split('/').map(decodeURIComponent); } catch { return null; } // malformed %-escape
+  const [, page, bucket, ...rest] = parts;
   const env = (await listEnvs()).find((e) => e.bucket === bucket && e.id === rest.join('/'));
   if (!env || !['env', 'history'].includes(page)) return null;
   if (page === 'env') return envPage({ ...env, lock: await loadLock(env) }, await loadState(env));
@@ -162,3 +164,6 @@ createServer(async (req, res) => {
     send(500, messagePage(`Error: ${err.message}`));
   }
 }).listen(process.env.PORT || 8080, () => console.log(`tfpeek on :${process.env.PORT || 8080}, buckets: ${buckets}`));
+
+// As PID 1 in a container Node ignores SIGTERM unless told otherwise.
+process.on('SIGTERM', () => process.exit(0));

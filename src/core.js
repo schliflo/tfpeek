@@ -42,7 +42,8 @@ function maskPath(node, path) {
 
 const address = (r, i) =>
   (r.module ? `${r.module}.` : '') + (r.mode === 'data' ? 'data.' : '') + `${r.type}.${r.name}` +
-  (i.index_key === undefined ? '' : `[${JSON.stringify(i.index_key)}]`);
+  (i.index_key === undefined ? '' : `[${JSON.stringify(i.index_key)}]`) +
+  (i.deposed ? ` (deposed ${i.deposed})` : ''); // old object kept during a replace, same address otherwise
 
 // Raw state v4 in, slim secret-free state out. Mutates the input; nothing else may see raw state.
 export function maskState(state) {
@@ -98,12 +99,15 @@ export function diffStates(before, after) {
 }
 
 // A run owns every serial in (serial_before, serial_after]: one apply can write state more than once.
+// Serials restart when an environment is re-created, so the write must also fall inside the run (1 min slack).
 export function matchRuns(generations, runs) {
-  const owns = (r, serial) => r.serial_after != null && serial <= r.serial_after &&
-    serial > (r.serial_before ?? r.serial_after - 1);
+  const during = (r, t) => !(Date.parse(t) < Date.parse(r.started_at) - 60_000) &&
+    !(Date.parse(t) > Date.parse(r.finished_at) + 60_000); // missing or invalid dates never exclude
+  const owns = (r, g) => r.serial_after != null && g.serial <= r.serial_after &&
+    g.serial > (r.serial_before ?? r.serial_after - 1) && during(r, g.updated);
   const used = new Set();
   const matched = generations.map((g) => {
-    const run = runs.find((r) => owns(r, g.serial));
+    const run = runs.find((r) => owns(r, g));
     if (run) used.add(run);
     return { ...g, run };
   });

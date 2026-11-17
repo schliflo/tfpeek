@@ -29,11 +29,12 @@ function time(t, compact) {
 }
 
 // `<prefix>/<workspace>` -> project (first segment) and branch (the rest).
-function names(id) {
-  const parts = id.split('/');
+// A state without prefix falls back to the bucket and workspace names.
+function names(env) {
+  const parts = env.id.split('/');
   const workspace = parts.pop();
-  const project = parts.shift() ?? '';
-  const branch = [parts.join('/'), workspace !== 'default' && `[${workspace}]`].filter(Boolean).join(' ');
+  const project = parts.shift() ?? env.bucket;
+  const branch = [parts.join('/'), workspace !== 'default' && `[${workspace}]`].filter(Boolean).join(' ') || workspace;
   return { project, branch };
 }
 const path = (env) => new Raw(`${env.bucket}/${env.id}`.split('/').map(encodeURIComponent).join('/'));
@@ -70,7 +71,7 @@ ${stat(envs.reduce((n, e) => n + (e.summary?.resources ?? 0), 0), 'resources')}<
 <div class="card scroll"><table class="rows">
 <tr><th>Project</th><th>Branch</th>${multi && html`<th>Bucket</th>`}<th>Lock</th><th>Serial</th><th>Terraform</th>
 <th>Resources</th><th>Last write</th><th>Last run</th></tr>
-${envs.map((e) => { const n = names(e.id); return html`<tr data-row data-text="${n.project} ${n.branch} ${e.bucket}">
+${envs.map((e) => { const n = names(e); return html`<tr data-row data-text="${n.project} ${n.branch} ${e.bucket}">
 <td>${n.project}</td><td><a class="rowlink" href="/env/${path(e)}">${n.branch}</a></td>
 ${multi && html`<td><small>${e.bucket}</small></td>`}<td>${lockBadge(e.lock) || html`<small>–</small>`}</td>
 ${e.error ? html`<td colspan="3"><span class="badge error">${e.error}</span></td>`
@@ -80,17 +81,17 @@ ${e.error ? html`<td colspan="3"><span class="badge error">${e.error}</span></td
 <p class="empty" data-nomatch hidden>No environment matches the filter.</p></div></div>`, true);
 }
 
-const envHead = (env, current, meta) => { const n = names(env.id); return html`<div class="head"><div><h1>${n.project} <small>/</small> ${n.branch}</h1>
+const envHead = (env, current, meta) => { const n = names(env); return html`<div class="head"><div><h1>${n.project} <small>/</small> ${n.branch}</h1>
 <p class="meta">${meta}</p></div><nav class="tabs">
 <a href="/env/${path(env)}" ${current === 'env' && new Raw('aria-current="page"')}>State</a>
 <a href="/history/${path(env)}" ${current === 'history' && new Raw('aria-current="page"')}>History</a></nav></div>`; };
-const crumbs = (env, tail) => html`<a href="/env/${path(env)}">${names(env.id).project} / ${names(env.id).branch}</a>${tail && html`<span>${tail}</span>`}`;
+const crumbs = (env, tail) => html`<a href="/env/${path(env)}">${names(env).project} / ${names(env).branch}</a>${tail && html`<span>${tail}</span>`}`;
 
 export function envPage(env, state) {
   const anchor = (dep) => state.resources.find((r) => r.address === dep || r.address.startsWith(`${dep}[`))?.address;
   const modules = [...Map.groupBy(state.resources, (r) => r.module)];
   const outputs = Object.entries(state.outputs);
-  return layout(`${names(env.id).project} / ${names(env.id).branch}`, crumbs(env), html`
+  return layout(`${names(env).project} / ${names(env).branch}`, crumbs(env), html`
 ${envHead(env, 'env', html`serial ${state.serial} · Terraform ${state.terraform_version} · ${state.resources.length} resources · written ${time(env.updated)}
 <br>gs://${env.bucket}/${env.id}.tfstate · lineage ${state.lineage}`)}
 ${env.lock && html`<h2>${lockBadge(env.lock)} State is locked</h2><div class="card lockbox scroll"><table class="kv">
@@ -114,7 +115,7 @@ const chip = (n, sign, cls) => html`<span class="${n ? cls : 'zero'}">${sign}${n
 const side = (v, sign, cls) => v !== undefined && html`<div class="${cls}">${sign} ${json(v)}</div>`;
 
 export function historyPage(env, generations, otherRuns) {
-  return layout(`${names(env.id).project} / ${names(env.id).branch} history`, crumbs(env, 'history'), html`
+  return layout(`${names(env).project} / ${names(env).branch} history`, crumbs(env, 'history'), html`
 ${envHead(env, 'history', html`newest ${generations.length} state versions · gs://${env.bucket}/${env.id}.tfstate`)}
 <div class="card scroll"><table>
 <tr><th>Written</th><th>Serial</th><th>Changes</th><th>Run</th></tr>

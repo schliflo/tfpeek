@@ -55,3 +55,15 @@ test('runs are matched to the state versions they wrote', () => {
   assert.deepEqual(generations.map((g) => g.run?.run_url), ['b', 'b', 'a', undefined]);
   assert.deepEqual(unmatched.map((r) => r.run_url), ['c', 'x']);
 });
+
+test('a run from before a re-create does not claim the new state', () => {
+  const old = { run_url: 'old', serial_before: 0, serial_after: 2, started_at: '2026-01-01T10:00:00Z', finished_at: '2026-01-01T10:05:00Z' };
+  const now = { run_url: 'new', serial_before: 1, serial_after: 2, started_at: '2026-03-01T10:00:00Z', finished_at: '2026-03-01T10:05:00Z' };
+  const { generations } = matchRuns([{ serial: 2, updated: '2026-03-01T10:04:00Z' }], [old, now]);
+  assert.equal(generations[0].run.run_url, 'new');
+});
+
+test('a deposed object gets its own address', () => {
+  const state = { resources: [{ mode: 'managed', type: 'x', name: 'y', instances: [{ attributes: {} }, { deposed: 'ab12', attributes: {} }] }] };
+  assert.deepEqual(maskState(state).resources.map((r) => r.address), ['x.y', 'x.y (deposed ab12)']);
+});
