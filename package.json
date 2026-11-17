@@ -1,6 +1,6 @@
 {
   "name": "tfpeek",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read-only web UI for Terraform state in GCS",
   "license": "MIT",
   "private": true,
