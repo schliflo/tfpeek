@@ -66,7 +66,7 @@ export function overviewPage(envs) {
   return layout('Overview', '', html`<div class="head"><h1>Environments</h1></div>
 ${filterBar('environments')}<div id="live">
 <div class="stats">${stat(envs.length, 'environments')}${stat(locked, 'locked', true)}${stat(failed, 'failing', true)}
-${stat(envs.reduce((n, e) => n + (e.state?.resources.length ?? 0), 0), 'resources')}</div>
+${stat(envs.reduce((n, e) => n + (e.summary?.resources ?? 0), 0), 'resources')}</div>
 <div class="card scroll"><table class="rows">
 <tr><th>Project</th><th>Branch</th>${multi && html`<th>Bucket</th>`}<th>Lock</th><th>Serial</th><th>Terraform</th>
 <th>Resources</th><th>Last write</th><th>Last run</th></tr>
@@ -74,7 +74,7 @@ ${envs.map((e) => { const n = names(e.id); return html`<tr data-row data-text="$
 <td>${n.project}</td><td><a class="rowlink" href="/env/${path(e)}">${n.branch}</a></td>
 ${multi && html`<td><small>${e.bucket}</small></td>`}<td>${lockBadge(e.lock) || html`<small>–</small>`}</td>
 ${e.error ? html`<td colspan="3"><span class="badge error">${e.error}</span></td>`
-    : html`<td class="num">${e.state.serial}</td><td class="num">${e.state.terraform_version}</td><td class="num">${e.state.resources.length}</td>`}
+    : html`<td class="num">${e.summary.serial}</td><td class="num">${e.summary.terraform_version}</td><td class="num">${e.summary.resources}</td>`}
 <td>${time(e.updated)}</td><td>${runCell(e.runs?.[0], true)}</td></tr>`; })}
 </table>${!envs.length && html`<p class="empty">No <code>*.tfstate</code> objects found in the configured buckets.</p>`}
 <p class="empty" data-nomatch hidden>No environment matches the filter.</p></div></div>`, true);

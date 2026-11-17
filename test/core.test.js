@@ -16,7 +16,7 @@ test('no secret value reaches the rendered HTML', () => {
   const gens = [{ updated: env.updated, serial: 8, diff: diffStates(before, after) },
     { updated: env.updated, serial: 7, diff: diffStates(null, before) }];
 
-  const pages = [envPage(env, after), historyPage(env, gens, []), overviewPage([{ ...env, state: after }])].join('');
+  const pages = [envPage(env, after), historyPage(env, gens, []), overviewPage([{ ...env, summary: { serial: 8, terraform_version: '1.17.2', resources: 5 } }])].join('');
   assert.doesNotMatch(pages, /SECRET-/);
   assert.match(pages, /class="masked"/);
   // non-secrets stay readable

@@ -18,15 +18,16 @@ const TTL = 30_000;
 const GENERATIONS = 30; // state versions on the history page
 const RUNS = 50;
 
-// shortcut: cache is only bounded by a full clear, switch to an LRU if memory matters
+// shortcut: no size limit beyond a full clear, switch to an LRU if memory matters
 const cache = new Map();
 function cached(key, ttl, fn) {
-  const hit = cache.get(key);
-  if (hit && hit.expires > Date.now()) return hit.value;
+  if (cache.has(key)) return cache.get(key);
   if (cache.size > 5000) cache.clear();
   const value = fn();
-  cache.set(key, { value, expires: Date.now() + ttl });
-  value.catch(() => cache.delete(key));
+  cache.set(key, value);
+  const drop = () => cache.get(key) === value && cache.delete(key);
+  value.catch(drop);
+  if (ttl !== Infinity) setTimeout(drop, ttl).unref();
   return value;
 }
 
@@ -57,8 +58,14 @@ async function readJson(bucket, name, generation) {
 }
 
 // The only place raw state exists; it is masked before it leaves.
-const loadState = (env, generation) => cached(`state:${env.bucket}:${env.id}:${generation}`, TTL,
-  async () => maskState(await readJson(env.bucket, `${env.id}.tfstate`, generation)));
+const fetchState = async (env, generation) => maskState(await readJson(env.bucket, `${env.id}.tfstate`, generation));
+const loadState = (env) => cached(`state:${env.bucket}:${env.id}:${env.generation}`, TTL, () => fetchState(env, env.generation));
+
+// A generation never changes, so its overview numbers are kept and the state is not read again.
+const loadSummary = (env) => cached(`summary:${env.bucket}:${env.id}:${env.generation}`, Infinity, async () => {
+  const state = await loadState(env);
+  return { serial: state.serial, terraform_version: state.terraform_version, resources: state.resources.length };
+});
 
 const listEnvs = () => cached('envs', TTL, async () => {
   const envs = [];
@@ -93,8 +100,8 @@ const loadRuns = (env, limit) => cached(`runs:${env.bucket}:${env.id}:${limit}`,
 async function overview() {
   return Promise.all((await listEnvs()).map(async (env) => {
     try {
-      const [state, lock, runs] = await Promise.all([loadState(env, env.generation), loadLock(env), loadRuns(env, 1)]);
-      return { ...env, state, lock, runs };
+      const [summary, lock, runs] = await Promise.all([loadSummary(env), loadLock(env), loadRuns(env, 1)]);
+      return { ...env, summary, lock, runs };
     } catch (err) {
       report(err, `${env.bucket}/${env.id}`);
       return { ...env, error: err.message };
@@ -109,14 +116,19 @@ async function history(env) {
     .map((f) => ({ generation: f.metadata.generation, updated: f.metadata.timeCreated }))
     .sort((a, b) => (BigInt(a.generation) < BigInt(b.generation) ? 1 : -1))
     .slice(0, GENERATIONS + 1);
-  // Generations are immutable, so a diff never expires.
-  const rows = await Promise.all(gens.slice(0, GENERATIONS).map((g, i) => {
+  // One at a time, holding the last state for the next diff: never more than two states in memory.
+  let held = {};
+  const get = async (generation) => (held.generation === generation ? held
+    : (held = { generation, state: await fetchState(env, generation) })).state;
+  const rows = [];
+  for (const [i, g] of gens.slice(0, GENERATIONS).entries()) {
     const prev = gens[i + 1]?.generation;
-    return cached(`diff:${env.bucket}:${env.id}:${g.generation}:${prev}`, Infinity, async () => {
-      const [after, before] = await Promise.all([loadState(env, g.generation), prev && loadState(env, prev)]);
-      return { ...g, serial: after.serial, diff: diffStates(before, after) };
-    });
-  }));
+    // Generations are immutable, so a diff never expires.
+    rows.push(await cached(`diff:${env.bucket}:${env.id}:${g.generation}:${prev}`, Infinity, async () => {
+      const after = await get(g.generation);
+      return { ...g, serial: after.serial, diff: diffStates(prev ? await get(prev) : null, after) };
+    }));
+  }
   return matchRuns(rows, await loadRuns(env, RUNS));
 }
 
@@ -125,7 +137,7 @@ async function route(url) {
   const [, page, bucket, ...rest] = url.pathname.split('/').map(decodeURIComponent);
   const env = (await listEnvs()).find((e) => e.bucket === bucket && e.id === rest.join('/'));
   if (!env || !['env', 'history'].includes(page)) return null;
-  if (page === 'env') return envPage({ ...env, lock: await loadLock(env) }, await loadState(env, env.generation));
+  if (page === 'env') return envPage({ ...env, lock: await loadLock(env) }, await loadState(env));
   const { generations, unmatched } = await history(env);
   return historyPage(env, generations, unmatched);
 }
