@@ -117,6 +117,7 @@ npm test
 Try it without a real bucket using [fake-gcs-server](https://github.com/fsouza/fake-gcs-server):
 start it with `-scheme http -backend memory` and set `STORAGE_EMULATOR_HOST=http://localhost:4443/storage/v1`.
 
+With that variable set, `npm test` also runs a smoke test of the server.
 ## License
 
 [MIT](LICENSE)

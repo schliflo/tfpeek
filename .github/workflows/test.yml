@@ -15,4 +15,7 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
+      - run: docker run -d -p 4443:4443 fsouza/fake-gcs-server -scheme http -backend memory
       - run: npm test
+        env:
+          STORAGE_EMULATOR_HOST: http://localhost:4443/storage/v1
