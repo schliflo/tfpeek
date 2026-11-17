@@ -1,9 +1,15 @@
-# tfpeek
+<h1><img src="docs/wordmark.svg" alt="tfpeek" height="40"></h1>
 
 Read-only web UI for Terraform state kept in GCS: current state, locks, history and deploy runs.
 One container, no database, no build step.
 
 Filter with `/`, link straight to a resource (`#address`), light and dark theme. The overview refreshes itself.
+
+![Overview: environments with lock, serial and last run](docs/overview.png)
+
+| Environment | History |
+|---|---|
+| ![Resources and outputs with secrets masked](docs/environment.png) | ![State versions with diffs and runs](docs/history.png) |
 
 - **Overview:** every environment with lock, serial, Terraform version, resource count, last write, last run.
 - **Environment:** resources by module and type, outputs, lock detail.
