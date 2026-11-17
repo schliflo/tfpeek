@@ -84,8 +84,8 @@ Runs that wrote no state are listed below the history.
 State holds secrets in plain text. tfpeek masks them before anything is rendered or cached:
 
 - every path in an instance's `sensitive_attributes`, and every output marked `sensitive`,
-- `random_password` `result` and `bcrypt_hash`,
-- any attribute or output whose name matches `secret|password|private_key|token|credential|api_key`,
+- `random_password` `result` and `bcrypt_hash`, and `helm_release` `values`, `set`, `manifest` and `metadata`,
+- any attribute or output whose name matches `secret|password|private_key|token|credential|api_key|user_data|startup_script|rendered`,
 - `value` next to a `name` that matches (container env vars).
 
 A secret hardcoded under an innocent attribute name is **not** caught. Mark it `sensitive` in Terraform.

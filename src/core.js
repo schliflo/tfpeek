@@ -10,8 +10,12 @@ export class Masked {
   toString() { return '(sensitive)'; }
 }
 
-const SECRET_NAME = /secret|password|private_key|token|credential|api_?key/i;
-const ALWAYS = { random_password: ['result', 'bcrypt_hash'] };
+const SECRET_NAME = /secret|password|private_key|token|credential|api_?key|user_data|startup[-_]script|rendered/i;
+// Whole attributes that routinely carry secrets as free text.
+const ALWAYS = {
+  random_password: ['result', 'bcrypt_hash'],
+  helm_release: ['values', 'set', 'set_list', 'manifest', 'metadata'],
+};
 
 const isEmpty = (v) => v == null || v === '' || (typeof v === 'object' && Object.keys(v).length === 0);
 const mask = (v) => (isEmpty(v) || v instanceof Masked ? v : new Masked(v));

@@ -22,6 +22,7 @@ test('no secret value reaches the rendered HTML', () => {
   // non-secrets stay readable
   assert.match(pages, /public-pem/);
   assert.match(pages, /LOG_LEVEL/);
+  assert.match(pages, /infra/);
   assert.match(pages, /module\.api\.google_cloud_run_v2_service\.api\[&#34;eu&#34;\]/);
 });
 
